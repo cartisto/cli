@@ -1,0 +1,46 @@
+{
+  "name": "@cartisto/cli",
+  "version": "0.1.0",
+  "description": "Cartisto Theme CLI — pull, push, dev, and validate custom storefront themes from your own editor.",
+  "keywords": [
+    "cartisto",
+    "cli",
+    "theme",
+    "storefront",
+    "liquid",
+    "ecommerce"
+  ],
+  "homepage": "https://github.com/cartisto/cli#readme",
+  "bugs": {
+    "url": "https://github.com/cartisto/cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cartisto/cli.git"
+  },
+  "license": "MIT",
+  "author": "Cartisto",
+  "type": "commonjs",
+  "bin": {
+    "cartisto": "bin/cartisto.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "bundle:contract": "node scripts/bundle-contract.js",
+    "prepack": "node scripts/bundle-contract.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

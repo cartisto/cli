@@ -1,0 +1,3 @@
+# Normalize all text to LF so the CLI's shebang (bin/cartisto.js) never gets a
+# CRLF that would break `#!/usr/bin/env node` on Linux/macOS.
+* text=auto eol=lf
