@@ -1,48 +1,39 @@
 #!/usr/bin/env node
 /*
- * Vendors the theme contract INTO the CLI so `@cartisto/cli` is the single,
- * self-contained public package (Shopify/Salla model — one install).
+ * Regenerates the bundled theme contract (src/contract.js) — the same contract
+ * the Cartisto server enforces on publish, compiled into the CLI so it can
+ * validate themes locally and offline.
  *
- * The contract's source of truth is the backend: a dependency-free, single
- * TypeScript file (themeContract.ts). This script reads it, strips the types
- * with the TypeScript compiler (dev-only — end users never need it), and writes
- * the runtime CommonJS to `src/contract.js`, which ships in the CLI tarball and
- * is what `src/sdk.js` requires. No separate SDK package, no tsconfig: the file
- * has no imports, so a single-string transpile is all it takes.
+ * The authoritative contract lives in Cartisto's source repository. When that
+ * source is available (internal development), its path is supplied via the
+ * CARTISTO_CONTRACT_SRC environment variable; this script compiles it to
+ * dependency-free CommonJS and writes src/contract.js.
  *
- * Runs on `prepack` (before `npm pack`/`npm publish`), so the published CLI can
- * never carry a stale contract. The output is also committed, so the CLI works
- * from a fresh checkout — and if the backend or `typescript` is absent (a
- * standalone public checkout), the committed copy is kept as-is.
+ * In a public checkout CARTISTO_CONTRACT_SRC is unset and src/contract.js is
+ * already committed and current — the script keeps the committed file as-is.
+ * It runs on `prepack` before every publish, so a release can never ship a
+ * stale contract.
  */
 const fs = require("fs");
 const path = require("path");
 
 const CLI_ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(CLI_ROOT, "src", "contract.js");
-// In the monorepo the backend sits alongside this folder (../Multi_Tenancy_…).
-// In the standalone public repo it is absent — keepCommitted() handles that.
-const CONTRACT_TS = path.resolve(
-  CLI_ROOT,
-  "..",
-  "Multi_Tenancy_Ecomemrce_Backend",
-  "src",
-  "utils",
-  "themeContract.ts",
-);
+const SRC = process.env.CARTISTO_CONTRACT_SRC
+  ? path.resolve(CLI_ROOT, process.env.CARTISTO_CONTRACT_SRC)
+  : null;
 
 function keepCommitted(reason) {
   if (fs.existsSync(OUT)) {
-    console.warn(`[bundle-contract] ${reason}; keeping committed src/contract.js.`);
+    console.log(`[bundle-contract] ${reason}; using the committed src/contract.js.`);
     process.exit(0);
   }
   console.error(`[bundle-contract] ${reason}, and no committed src/contract.js exists.`);
   process.exit(1);
 }
 
-if (!fs.existsSync(CONTRACT_TS)) {
-  keepCommitted(`backend contract not found at ${CONTRACT_TS}`);
-}
+if (!SRC) keepCommitted("no contract source configured (CARTISTO_CONTRACT_SRC unset)");
+if (!fs.existsSync(SRC)) keepCommitted("configured contract source not found");
 
 let ts;
 try {
@@ -51,23 +42,25 @@ try {
   keepCommitted("`typescript` (devDependency) is not installed");
 }
 
-const source = fs.readFileSync(CONTRACT_TS, "utf8");
-// Single-file transpile — no type-checking, no module resolution needed (the
-// contract imports nothing). Options mirror the compile this replaced.
+const source = fs.readFileSync(SRC, "utf8");
+// Single-file transpile — no type-checking or module resolution needed (the
+// contract imports nothing). `removeComments` keeps internal notes out of the
+// published output; the runtime code is unchanged.
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: {
     module: ts.ModuleKind.CommonJS,
     target: ts.ScriptTarget.ES2020,
     esModuleInterop: true,
+    removeComments: true,
   },
-  fileName: "themeContract.ts",
+  fileName: "contract.ts",
 });
 
 const header =
   "// ─────────────────────────────────────────────────────────────────────────\n" +
-  "// VENDORED — DO NOT EDIT.\n" +
-  "// Compiled from Multi_Tenancy_Ecomemrce_Backend/src/utils/themeContract.ts\n" +
-  "// (the platform's single source of truth). Regenerate: `npm run bundle:contract`.\n" +
+  "// GENERATED — DO NOT EDIT.\n" +
+  "// The Cartisto theme contract, compiled and bundled into the CLI for local\n" +
+  "// validation. Regenerate with `npm run bundle:contract`.\n" +
   "// ─────────────────────────────────────────────────────────────────────────\n\n";
 
 fs.writeFileSync(OUT, header + outputText, "utf8");

@@ -5,11 +5,11 @@
  * opens Cartisto, and the OAuth flow resolves the authorized store.
  *
  *   APP_URL — the Cartisto dashboard, opened in the browser for login/approval.
- *   API_URL — the Cartisto backend API base, for the device-grant endpoints.
+ *   API_URL — the Cartisto API base, used for the auth token exchange.
  *
- * Prod defaults are baked in; local development overrides them with env vars:
- *   CARTISTO_APP_URL=http://app.lvh.me:3000   (dashboard, browser)
- *   CARTISTO_API_URL=http://localhost:8000    (backend API base)
+ * Production defaults are baked in. They can be overridden with the
+ * CARTISTO_APP_URL / CARTISTO_API_URL env vars to point the CLI at a
+ * non-production Cartisto environment; no override is needed on a normal install.
  */
 const DEFAULT_APP_URL = "https://app.cartisto.com";
 const DEFAULT_API_URL = "https://api.cartisto.com";

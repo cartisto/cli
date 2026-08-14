@@ -1,36 +1,30 @@
 # @cartisto/cli
 
-The Cartisto Theme CLI — build custom storefront themes in your own editor, then validate and (soon) sync them to a store.
+The Cartisto Theme CLI — build custom storefront themes in your own editor, validate them locally, and sync them with a Cartisto store.
 
 > Commerce behavior belongs to the platform. Themes own presentation.
 
 ## Install
-
-### From npm (once published)
 
 ```bash
 npm install -g @cartisto/cli
 cartisto help
 ```
 
-**Zero runtime dependencies** — one self-contained package. The theme contract
-is compiled from the backend and vendored into the CLI (`src/contract.js`), so it
-runs on any Node ≥ 18, offline. `@cartisto/cli` is the only package you install.
+**Zero runtime dependencies** — one self-contained package. It includes the
+Cartisto theme contract used for local validation, so it runs on any Node ≥ 18,
+fully offline. `@cartisto/cli` is the only package you install.
 
-### From source (development)
+### From source
 
 ```bash
-npm install                 # installs dev deps (typescript, for bundle:contract)
+git clone https://github.com/cartisto/cli.git
+cd cli
 node bin/cartisto.js help
 
 # optional: expose it as the `cartisto` command
 npm link && cartisto help
 ```
-
-The vendored `src/contract.js` is committed, so the CLI runs straight from a fresh
-checkout. It is compiled directly from the backend's `themeContract.ts` (the
-single source of truth) on `npm run bundle:contract`, and automatically on
-`prepack` before every publish — see `scripts/bundle-contract.js`.
 
 ## Auth & stores
 
@@ -40,22 +34,16 @@ cartisto logout                                   # remove the saved profile
 cartisto store list | use <alias> | remove <alias>   # manage profiles
 ```
 
-Auth is an **OAuth 2.0 Device Authorization Grant** — `cartisto login` (no
-arguments) opens Cartisto in your browser; you sign in as a **Manager** whose
-role has the **Themes** permission and approve. The CLI then receives a
-themes-scoped token **and the authorized store's context** — you never type a
-store or app URL. Profiles live in `~/.cartisto/config.json` (mode `0600`).
+Auth uses **OAuth 2.0 Authorization Code with PKCE** over a localhost loopback
+callback (like the Shopify / GitHub CLIs). `cartisto login` (no arguments) opens
+Cartisto in your browser; you sign in as a **Manager** whose role has the
+**Themes** permission and approve. The browser redirects a one-time code back to
+the CLI, which exchanges it for a **themes-scoped token and the authorized store's
+context** — you never type a store or app URL. For headless/SSH sessions,
+`cartisto login --device` uses the Device Authorization Grant instead. Profiles
+live in `~/.cartisto/config.json` (mode `0600`).
 
-The CLI learns the Cartisto endpoints from build/env config (not flags). In local
-development, override them:
-
-```bash
-export CARTISTO_APP_URL=http://app.lvh.me:3000   # dashboard (browser)
-export CARTISTO_API_URL=http://localhost:8000    # backend API base
-```
-
-The baked-in production defaults are `https://app.cartisto.com` (app) and
-`https://api.cartisto.com` (API) — no env vars needed on a normal install.
+No endpoint configuration is needed — the CLI connects to Cartisto automatically.
 
 Managing several stores? Run `cartisto store add --as <alias>` (an OAuth login
 that saves under a new alias) and switch with `cartisto store use <alias>`.
@@ -92,10 +80,9 @@ cartisto doctor                                       # check Node, CLI, endpoin
   and configure the sections you're editing. Both the customizer and the raw
   storefront-preview URLs are printed. Publishing stays the explicit, gated
   `push --publish` step. Ctrl+C to stop.
-    - `--open customize` (default) · `storefront` (bare preview, no dashboard
-      login needed) · `none` (just print the URLs). The customizer origin comes
-      from `CARTISTO_APP_URL` (build/env config); the customizer needs the
-      dashboard running and you logged in.
+    - `--open customize` (default) · `storefront` (bare preview, no login
+      needed) · `none` (just print the URLs). The customizer opens in your
+      browser and needs you signed in to Cartisto.
 - **init** forks the platform starter into a new custom theme on the store and
   pulls it locally, ready to edit. The theme is a plain folder of Liquid /
   `theme.json` / assets / locales — no `package.json`, no `npm install`, no build
@@ -104,16 +91,15 @@ cartisto doctor                                       # check Node, CLI, endpoin
 
 ### `cartisto theme validate [dir]`
 
-Runs the platform's Tier-1 theme contract against a local directory (defaults to
-`.`). This is the **exact mirror of the server-side publish gate** — both run the
-same contract compiled from the backend — so a green local validate means publish
-won't reject the theme on contract grounds. It checks:
+Runs Cartisto's theme contract against a local directory (defaults to `.`). It is
+the **exact mirror of the server-side publish gate** — the CLI includes the same
+theme contract — so a green local validate means publish won't reject the theme on
+contract grounds. It checks:
 
-- no banned platform-behaviour patterns (direct `fetch`, `salla.*`, the inlined
-  listing engine, deleted globals, renamed events, hardcoded platform `<script>`
-  tags, pre-namespace element names);
+- no banned platform-behaviour patterns — themes must not call the backend API
+  directly (`fetch`) or re-implement platform-owned commerce behaviour;
 - the layout yields the required platform slots (`platform_head` / `platform_body` / `content`);
-- `theme.json` declares a known `"sdk"` contract version;
+- `theme.json` declares a supported theme contract version (its `"sdk"` field);
 - every `locales/*.json` is at key parity with the others.
 
 ```bash

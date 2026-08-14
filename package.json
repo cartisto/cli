@@ -1,6 +1,6 @@
 {
   "name": "@cartisto/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cartisto Theme CLI — pull, push, dev, and validate custom storefront themes from your own editor.",
   "keywords": [
     "cartisto",
